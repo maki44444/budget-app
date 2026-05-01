@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Мой Бюджет</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ГЛАВНАЯ -->
+  <div id="page-home" class="page active">
+    <div class="header">
+      <div class="header-top">
+        <span class="header-month" id="home-month-label">—</span>
+        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()"></button>
+      </div>
+      <div class="balance-label">Баланс</div>
+      <div class="balance" id="balance">0 ₽</div>
+      <div class="balance-row">
+        <div class="balance-item income">
+          <span class="bi-label">Доходы</span>
+          <span class="bi-value" id="total-income">0 ₽</span>
+        </div>
+        <div class="balance-item expense">
+          <span class="bi-label">Расходы</span>
+          <span class="bi-value" id="total-expense">0 ₽</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Последние операции</div>
+    <div class="tx-group">
+      <div id="transactions-list" class="transactions-list">
+        <div class="empty-state">Нет операций. Добавь первую!</div>
+      </div>
+    </div>
+    <div id="all-tx-btn-wrap" style="display:none;">
+      <button class="btn-all-tx" onclick="openAllTransactions()">Все операции за месяц →</button>
+    </div>
+  </div>
+
+  <!-- ДОБАВИТЬ -->
+  <div id="page-add" class="page">
+    <div class="form-header">Новая операция</div>
+    <div class="type-toggle">
+      <button class="toggle-btn active" id="btn-expense" onclick="setType('expense')">Расход</button>
+      <button class="toggle-btn" id="btn-income" onclick="setType('income')">Доход</button>
+    </div>
+    <div class="form-group">
+      <label>Сумма</label>
+      <input type="number" id="amount" placeholder="0" inputmode="decimal" />
+    </div>
+    <div class="form-group">
+      <label class="label-row">
+        <span>Категория</span>
+        <button class="label-action" id="cat-edit-toggle" onclick="toggleCategoryEdit()">Изменить</button>
+      </label>
+      <div id="categories-grid" class="categories-grid"></div>
+    </div>
+    <div class="form-group">
+      <label>Дата</label>
+      <input type="date" id="date" />
+    </div>
+    <div class="form-group">
+      <label>Заметка</label>
+      <input type="text" id="note" placeholder="Необязательно..." />
+    </div>
+    <button class="btn-primary" onclick="saveTransaction()">Сохранить</button>
+  </div>
+
+  <!-- БЮДЖЕТ -->
+  <div id="page-budget" class="page">
+    <div class="form-header">Бюджет</div>
+    <div class="budget-month" id="budget-month-label"></div>
+    <div id="budget-list" class="budget-list"></div>
+  </div>
+
+  <!-- АНАЛИТИКА -->
+  <div id="page-analytics" class="page">
+    <div class="form-header">Аналитика</div>
+    <div class="period-tabs">
+      <button class="period-btn active" onclick="setPeriod('week', this)">Неделя</button>
+      <button class="period-btn" onclick="setPeriod('month', this)">Месяц</button>
+      <button class="period-btn" onclick="setPeriod('year', this)">Год</button>
+    </div>
+    <div class="analytics-summary">
+      <div class="summary-card income-card">
+        <div class="summary-label">Доходы</div>
+        <div class="summary-value" id="a-income">0 ₽</div>
+      </div>
+      <div class="summary-card expense-card">
+        <div class="summary-label">Расходы</div>
+        <div class="summary-value" id="a-expense">0 ₽</div>
+      </div>
+    </div>
+    <div class="chart-container">
+      <canvas id="chart-categories"></canvas>
+    </div>
+    <div class="section-title" style="margin-top:16px">По категориям</div>
+    <div id="categories-breakdown" class="categories-breakdown"></div>
+  </div>
+
+  <!-- НАВИГАЦИЯ -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="showPage('home', this)">
+      <span class="nav-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </span>
+      <span class="nav-label">Главная</span>
+    </button>
+    <button class="nav-btn add-btn" onclick="showPage('add', this)">
+      <span class="nav-icon">+</span>
+      <span class="nav-label">Добавить</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('budget', this)">
+      <span class="nav-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 3v9l4.5 4.5"/>
+        </svg>
+      </span>
+      <span class="nav-label">Бюджет</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('analytics', this)">
+      <span class="nav-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+          <line x1="2" y1="20" x2="22" y2="20"/>
+        </svg>
+      </span>
+      <span class="nav-label">Аналитика</span>
+    </button>
+  </nav>
+
+  <!-- МОДАЛ ЛИМИТА -->
+  <div id="modal-budget" class="modal-overlay" onclick="closeBudgetModal(event)">
+    <div class="modal-box">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="budget-modal-title">Лимит</div>
+      <div class="form-group">
+        <label>Лимит на месяц (₽)</label>
+        <input type="number" id="budget-limit-input" placeholder="0" inputmode="decimal" />
+      </div>
+      <button class="btn-primary" onclick="saveBudgetLimit()">Сохранить</button>
+      <button class="btn-secondary" onclick="hideBudgetModal()">Отмена</button>
+      <button class="btn-danger" id="budget-delete-btn" onclick="deleteBudgetLimit()">Убрать лимит</button>
+    </div>
+  </div>
+
+  <!-- МОДАЛ РЕДАКТИРОВАНИЯ -->
+  <div id="modal-edit" class="modal-overlay" onclick="closeEditModal(event)">
+    <div class="modal-box">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Редактировать</div>
+      <div class="type-toggle" style="margin-bottom:16px">
+        <button class="toggle-btn" id="edit-btn-expense" onclick="setEditType('expense')">Расход</button>
+        <button class="toggle-btn" id="edit-btn-income" onclick="setEditType('income')">Доход</button>
+      </div>
+      <div class="form-group">
+        <label>Сумма</label>
+        <input type="number" id="edit-amount" placeholder="0" inputmode="decimal" />
+      </div>
+      <div class="form-group">
+        <label>Категория</label>
+        <div id="edit-categories-grid" class="categories-grid"></div>
+      </div>
+      <div class="form-group">
+        <label>Дата</label>
+        <input type="date" id="edit-date" />
+      </div>
+      <div class="form-group">
+        <label>Заметка</label>
+        <input type="text" id="edit-note" placeholder="Необязательно..." />
+      </div>
+      <button class="btn-primary" onclick="saveEditTransaction()">Сохранить</button>
+      <button class="btn-secondary" onclick="hideEditModal()">Отмена</button>
+    </div>
+  </div>
+
+  <!-- МОДАЛ НОВОЙ КАТЕГОРИИ -->
+  <div id="modal-category" class="modal-overlay" onclick="closeCategoryModal(event)">
+    <div class="modal-box">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Новая категория</div>
+      <div class="form-group">
+        <label>Иконка (эмодзи)</label>
+        <input type="text" id="cat-icon-input" placeholder="💰" />
+      </div>
+      <div class="form-group">
+        <label>Название</label>
+        <input type="text" id="cat-name-input" placeholder="Например: Кафе" maxlength="30" />
+      </div>
+      <button class="btn-primary" onclick="saveNewCategory()">Добавить</button>
+      <button class="btn-secondary" onclick="hideCategoryModal()">Отмена</button>
+    </div>
+  </div>
+
+  <!-- МОДАЛ ВСЕХ ОПЕРАЦИЙ -->
+  <div id="modal-all" class="modal-overlay" onclick="closeAllModal(event)">
+    <div class="modal-box" style="min-height:60vh;">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="all-modal-title">Все операции</div>
+      <div class="tx-group">
+        <div id="all-transactions-list" class="transactions-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
